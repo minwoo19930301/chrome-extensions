@@ -1,19 +1,25 @@
 {
   "manifest_version": 3,
-  "name": "Shinsegae Blossom Alarm",
+  "name": "Blossom 게시판 자동 크롤러",
   "version": "1.0",
+  "description": "블라섬 사내 게시판에 자동으로 로그인하고 최신 게시물을 크롤링합니다.",
   "permissions": [
-    "storage",
-    "alarms",
-    "cookies"
-  ],
-  "host_permissions": [
-    "https://blossom.shinsegae.com/*"
+    "tabs",
+    "scripting",
+    "notifications"
   ],
   "background": {
     "service_worker": "background.js"
   },
-  "action": {
-    "default_popup": "popup.html"
+  "content_scripts": [
+    {
+      "matches": ["https://blossom.shinsegae.com/*"],
+      "js": ["content.js"]
+    }
+  ],
+  "icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
   }
 }

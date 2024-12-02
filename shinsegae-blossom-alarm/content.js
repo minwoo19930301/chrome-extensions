@@ -1,91 +1,104 @@
-(async () => {
-    try {
-        console.log('콘텐츠 스크립트가 실행되었습니다.');
+// content.js
 
-        const { userId, password } = await new Promise((resolve) => {
-            chrome.storage.local.get(['userId', 'password'], resolve);
-        });
+// 🚨 임시 로그인 정보 (실제 사용 시 보안 강화 필요)
+const USERNAME = '120221104'; // 여기에 실제 아이디 입력
+const PASSWORD = 'Rla48684!'; // 여기에 실제 비밀번호 입력
 
-        if (!userId || !password) {
-            console.error('저장된 로그인 정보가 없습니다.');
-            return;
-        }
+// 로그인 페이지인지 확인하는 함수
+function isLoginPage() {
+    return document.getElementById('txtPC_LoginID') && document.getElementById('txtPC_LoginPW');
+}
 
-        console.log('로그인 정보를 가져왔습니다.');
+// 로그인 수행 함수
+function performLogin() {
+    const usernameField = document.getElementById('txtPC_LoginID');
+    const passwordField = document.getElementById('txtPC_LoginPW');
+    const loginButton = document.getElementById('btnLoginCall');
 
-        window.addEventListener('load', async function() {
-            console.log('페이지 로드 완료');
+    if (usernameField && passwordField && loginButton) {
+        usernameField.value = USERNAME;
+        passwordField.value = PASSWORD;
 
-            // 실제 로그인 페이지의 요소 선택자 확인 및 수정 필요
-            const userIdField = document.querySelector('#txtUserId');
-            const passwordField = document.querySelector('#txtPassword');
-            const loginButton = document.querySelector('#btnLogin');
+        // 이벤트 트리거 (필요 시)
+        usernameField.dispatchEvent(new Event('input', { bubbles: true }));
+        passwordField.dispatchEvent(new Event('input', { bubbles: true }));
 
-            if (userIdField && passwordField && loginButton) {
-                userIdField.value = userId;
-                passwordField.value = password;
-
-                console.log('아이디와 비밀번호를 입력했습니다.');
-
-                loginButton.click();
-
-                console.log('로그인 버튼을 클릭했습니다.');
-
-                // 로그인 후 데이터 수집
-                const checkLogin = setInterval(async () => {
-                    if (!window.location.href.includes('Login.aspx')) {
-                        clearInterval(checkLogin);
-                        console.log('로그인 성공');
-
-                        // 데이터 가져오기
-                        await fetchData();
-                    } else {
-                        console.log('로그인 대기 중...');
-                    }
-                }, 1000);
-            } else {
-                console.error('로그인 폼 요소를 찾을 수 없습니다.');
-            }
-        });
-
-        async function fetchData() {
-            try {
-                console.log('데이터 요청 중...');
-
-                const response = await fetch('https://blossom.shinsegae.com/WebSite/Basic/Board/BoardList.aspx?system=Board&fdid=45044', {
-                    credentials: 'include',
-                });
-
-                if (response.ok) {
-                    const text = await response.text();
-                    console.log('데이터 가져오기 성공');
-                    parseData(text);
-
-                    // 탭 닫기
-                    chrome.runtime.sendMessage({ action: 'closeTab' });
-                } else {
-                    console.error('데이터 가져오기 실패:', response.statusText);
-                }
-            } catch (error) {
-                console.error('데이터 요청 오류:', error);
-            }
-        }
-
-        function parseData(htmlText) {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(htmlText, 'text/html');
-
-            // 원하는 테이블 선택 (실제 선택자로 수정 필요)
-            const table = doc.querySelector('#yourTableSelector');
-
-            if (table) {
-                console.log('테이블 데이터를 성공적으로 추출했습니다.');
-                console.log(table.innerText);
-            } else {
-                console.error('테이블을 찾을 수 없습니다.');
-            }
-        }
-    } catch (error) {
-        console.error('로그인 과정에서 오류 발생:', error);
+        // 로그인 버튼 클릭
+        loginButton.click();
     }
-})();
+}
+
+// 대상 페이지인지 확인하는 함수
+function isTargetPage() {
+    return window.location.href.includes('/WebSite/Basic/Board/BoardList.aspx?system=Board&fdid=45044');
+}
+
+// 테이블 데이터 크롤링 함수
+function scrapeData() {
+    const table = document.getElementById('cphContent_cphContent_grid');
+    if (!table) {
+        console.log('게시판 테이블을 찾을 수 없습니다.');
+        return null;
+    }
+
+    const tbody = table.querySelector('tbody');
+    if (!tbody) {
+        console.log('게시판 테이블의 tbody를 찾을 수 없습니다.');
+        return null;
+    }
+
+    const rows = tbody.querySelectorAll('tr');
+    const data = [];
+
+    rows.forEach(row => {
+        const cols = row.querySelectorAll('td');
+        if (cols.length >= 6) {
+            const number = cols[0].textContent.trim();
+            const category = cols[1].textContent.trim();
+            const productGroup = cols[2].textContent.trim();
+            const promotionName = cols[3].textContent.trim();
+            const creator = cols[4].textContent.trim();
+            const postDate = cols[5].textContent.trim();
+
+            data.push({
+                number,
+                category,
+                productGroup,
+                promotionName,
+                creator,
+                postDate
+            });
+        }
+    });
+
+    return data;
+}
+
+// 백그라운드로 데이터 전송 함수
+function sendData(data) {
+    if (data && data.length > 0) {
+        chrome.runtime.sendMessage({ action: 'send_data', data: data });
+    } else {
+        console.log('크롤링된 데이터가 없습니다.');
+    }
+}
+
+// 메인 실행 함수
+function main() {
+    if (isLoginPage()) {
+        console.log('로그인 페이지 감지. 자동으로 로그인 시도합니다.');
+        performLogin();
+    } else if (isTargetPage()) {
+        console.log('대상 페이지 감지. 데이터 크롤링을 시작합니다.');
+        const data = scrapeData();
+        sendData(data);
+    } else {
+        console.log('해당 페이지에서는 동작하지 않습니다.');
+    }
+}
+
+// 페이지 로드 후 실행
+window.addEventListener('load', () => {
+    // 약간의 지연을 두어 페이지 요소들이 로드되도록 함
+    setTimeout(main, 1000);
+});
