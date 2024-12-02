@@ -230,6 +230,7 @@
             console.log('대상 페이지 감지. 데이터 크롤링을 시작합니다.');
             const data = scrapeData();
             sendData(data);
+            window.close();
         }
         else {
             console.log('해당 페이지에서는 동작하지 않습니다.');
@@ -239,7 +240,7 @@
     // 페이지 로드 후 실행
     window.addEventListener('load', () => {
         // 약간의 지연을 두어 페이지 요소들이 로드되도록 함
-        setTimeout(main, 1000);
+        setTimeout(main, 100);
     });
 
 })();
