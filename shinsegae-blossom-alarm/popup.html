@@ -1,22 +1,23 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
+    <meta charset="UTF-8">
     <title>Blossom 로그인 설정</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            padding: 10px;
-            width: 250px;
+            padding: 20px;
+            width: 300px;
         }
         input[type="text"], input[type="password"] {
             width: 100%;
-            padding: 5px;
-            margin: 5px 0 10px 0;
+            padding: 8px;
+            margin: 10px 0;
             box-sizing: border-box;
         }
         button {
             width: 100%;
-            padding: 7px;
+            padding: 10px;
             background-color: #4CAF50;
             color: white;
             border: none;
@@ -28,11 +29,13 @@
     </style>
 </head>
 <body>
-<h3>로그인 정보</h3>
-<input type="text" id="username" placeholder="아이디">
-<input type="password" id="password" placeholder="비밀번호">
+<h2>로그인 정보 입력</h2>
+<input type="text" id="username" placeholder="아이디" value="120221104">
+<input type="password" id="password" placeholder="비밀번호" value="Rla48684!">
 <button id="save">저장</button>
 
+<!-- CryptoJS 로드 -->
+<script src="crypto-utils.js"></script>
 <script src="popup.js"></script>
 </body>
 </html>

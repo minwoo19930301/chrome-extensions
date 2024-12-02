@@ -2,24 +2,35 @@
   "manifest_version": 3,
   "name": "Blossom 게시판 자동 크롤러",
   "version": "1.0",
-  "description": "블라섬 사내 게시판에 자동으로 로그인하고 최신 게시물을 크롤링합니다.",
+  "description": "블라섬 사내 게시판에 자동으로 로그인하고 최신 게시물을 크롤링하여 알림으로 표시합니다.",
   "permissions": [
     "tabs",
-    "scripting",
-    "notifications"
+    "notifications",
+    "storage",
+    "cookies"
+  ],
+  "host_permissions": [
+    "https://blossom.shinsegae.com/*"
   ],
   "background": {
     "service_worker": "background.js"
   },
-  "content_scripts": [
-    {
-      "matches": ["https://blossom.shinsegae.com/*"],
-      "js": ["content.js"]
-    }
-  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
   "icons": {
     "16": "icon.png",
     "48": "icon.png",
     "128": "icon.png"
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://blossom.shinsegae.com/WebSite/Login.aspx*",
+        "https://blossom.shinsegae.com/WebSite/Basic/Board/BoardList.aspx?system=Board&fdid=45044*"
+      ],
+      "js": ["crypto-utils.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ]
 }
