@@ -1,4 +1,6 @@
-(function() {
+// content.js
+
+(async function() {
     const LOGIN_URL = "https://blossom.shinsegae.com/WebSite/Login.aspx";
     const TARGET_URL = "https://blossom.shinsegae.com/WebSite/Basic/Board/BoardList.aspx?system=Board&fdid=45044";
 
@@ -11,24 +13,50 @@
     }
 
     // 로그인 수행 함수
-    function performLogin(username, password) {
+    async function performLogin(encryptedUsernameBase64, encryptedPasswordBase64, ivBase64) {
         const usernameField = document.getElementById('txtPC_LoginID');
         const passwordField = document.getElementById('txtPC_LoginPW');
         const loginButton = document.getElementById('btnLoginCall');
 
         if (usernameField && passwordField && loginButton) {
             console.log('로그인 요소 찾음. 로그인 시도 중...');
-            usernameField.value = username;
-            passwordField.value = password;
 
-            // 이벤트 트리거
-            usernameField.dispatchEvent(new Event('input', { bubbles: true }));
-            passwordField.dispatchEvent(new Event('input', { bubbles: true }));
+            try {
+                const key = await getKey(PASSPHRASE);
+                const iv = base64ToArrayBuffer(ivBase64);
 
-            // 로그인 버튼 클릭
-            loginButton.click();
+                // 복호화
+                const decryptedUsername = await decryptData(encryptedUsernameBase64, key, iv);
+                const decryptedPassword = await decryptData(encryptedPasswordBase64, key, iv);
 
-            console.log('로그인 버튼 클릭 이벤트 발생.');
+                if (decryptedUsername && decryptedPassword) {
+                    usernameField.value = decryptedUsername;
+                    passwordField.value = decryptedPassword;
+
+                    // 이벤트 트리거
+                    usernameField.dispatchEvent(new Event('input', { bubbles: true }));
+                    passwordField.dispatchEvent(new Event('input', { bubbles: true }));
+
+                    // 로그인 버튼 클릭
+                    loginButton.click();
+
+                    console.log('로그인 버튼 클릭 이벤트 발생.');
+                } else {
+                    console.log('복호화된 로그인 정보가 유효하지 않습니다.');
+                    chrome.runtime.sendMessage({ action: 'notify_missing_credentials' }, (response) => {
+                        if (response.status !== 'success') {
+                            console.log('로그인 정보 누락 알림 전송 실패.');
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('로그인 정보 복호화 중 오류 발생:', error);
+                chrome.runtime.sendMessage({ action: 'notify_login_error' }, (response) => {
+                    if (response.status !== 'success') {
+                        console.log('로그인 오류 알림 전송 실패.');
+                    }
+                });
+            }
         } else {
             console.log('로그인 요소를 찾을 수 없습니다.');
         }
@@ -111,33 +139,6 @@
         }
     }
 
-    // 암호화 키 파생 함수
-    async function getKey(password) {
-        const encoder = new TextEncoder();
-        const keyMaterial = await window.crypto.subtle.importKey(
-            "raw",
-            encoder.encode(password),
-            { name: "PBKDF2" },
-            false,
-            ["deriveKey"]
-        );
-
-        const key = await window.crypto.subtle.deriveKey(
-            {
-                name: "PBKDF2",
-                salt: encoder.encode("unique-salt"),
-                iterations: 100000,
-                hash: "SHA-256"
-            },
-            keyMaterial,
-            { name: "AES-GCM", length: 256 },
-            false,
-            ["decrypt"]
-        );
-
-        return key;
-    }
-
     // 메인 실행 함수
     async function main() {
         if (isLoginPage()) {
@@ -149,56 +150,13 @@
             const encryptedUsernameBase64 = urlParams.get('blossom_username');
             const encryptedPasswordBase64 = urlParams.get('blossom_password');
 
-            console.log(`Encrypted Username: ${encryptedUsernameBase64}, Encrypted Password: ${encryptedPasswordBase64}`); // 디버깅 로그
-
             if (ivBase64 && encryptedUsernameBase64 && encryptedPasswordBase64) {
-                try {
-                    const key = await getKey(PASSPHRASE);
-                    const iv = base64ToArrayBuffer(ivBase64);
+                await performLogin(encryptedUsernameBase64, encryptedPasswordBase64, ivBase64);
 
-                    // 암호화된 데이터 복호화
-                    const decryptedUsernameBuffer = await window.crypto.subtle.decrypt(
-                        {
-                            name: "AES-GCM",
-                            iv: iv
-                        },
-                        key,
-                        base64ToArrayBuffer(encryptedUsernameBase64)
-                    );
-                    const decryptedPasswordBuffer = await window.crypto.subtle.decrypt(
-                        {
-                            name: "AES-GCM",
-                            iv: iv
-                        },
-                        key,
-                        base64ToArrayBuffer(encryptedPasswordBase64)
-                    );
-
-                    const decryptedUsername = arrayBufferToString(decryptedUsernameBuffer);
-                    const decryptedPassword = arrayBufferToString(decryptedPasswordBuffer);
-
-                    console.log(`Decrypted Username: ${decryptedUsername}, Decrypted Password: ${decryptedPassword}`); // 디버깅 로그
-
-                    if (decryptedUsername && decryptedPassword) {
-                        performLogin(decryptedUsername, decryptedPassword);
-
-                        // 로그인 시도 후 3초 후에 로그인 실패 여부 확인
-                        setTimeout(detectLoginFailure, 3000);
-                    } else {
-                        console.log('복호화된 로그인 정보가 유효하지 않습니다.');
-                        // 백그라운드로 로그인 정보 누락 알림 메시지 전송
-                        chrome.runtime.sendMessage({ action: 'notify_missing_credentials' }, (response) => {
-                            if (response.status !== 'success') {
-                                console.log('로그인 정보 누락 알림 전송 실패.');
-                            }
-                        });
-                    }
-                } catch (error) {
-                    console.error('로그인 정보 복호화 중 오류 발생:', error);
-                }
+                // 로그인 시도 후 3초 후에 로그인 실패 여부 확인
+                setTimeout(detectLoginFailure, 3000);
             } else {
                 console.log('URL에 암호화된 로그인 정보가 없습니다.');
-                // 백그라운드로 로그인 정보 누락 알림 메시지 전송
                 chrome.runtime.sendMessage({ action: 'notify_missing_credentials' }, (response) => {
                     if (response.status !== 'success') {
                         console.log('로그인 정보 누락 알림 전송 실패.');

@@ -1,3 +1,5 @@
+// popup.js
+
 document.getElementById('save').addEventListener('click', saveCredentials);
 document.getElementById('username').addEventListener('keydown', handleEnterKey);
 document.getElementById('password').addEventListener('keydown', handleEnterKey);
@@ -13,35 +15,14 @@ async function saveCredentials() {
     if (username && password) {
         try {
             const key = await getKey(PASSPHRASE);
-            const encoder = new TextEncoder();
             const iv = window.crypto.getRandomValues(new Uint8Array(12)); // AES-GCM에 필요한 12바이트 IV 생성
 
-            // 사용자 이름 암호화
-            const encryptedUsername = await window.crypto.subtle.encrypt(
-                {
-                    name: "AES-GCM",
-                    iv: iv
-                },
-                key,
-                encoder.encode(username)
-            );
-
-            // 비밀번호 암호화
-            const encryptedPassword = await window.crypto.subtle.encrypt(
-                {
-                    name: "AES-GCM",
-                    iv: iv
-                },
-                key,
-                encoder.encode(password)
-            );
+            // 암호화
+            const encryptedUsernameBase64 = await encryptData(username, key, iv);
+            const encryptedPasswordBase64 = await encryptData(password, key, iv);
 
             // IV를 Base64로 인코딩하여 저장
             const ivBase64 = arrayBufferToBase64(iv);
-
-            // 암호화된 데이터를 Base64로 인코딩하여 저장
-            const encryptedUsernameBase64 = arrayBufferToBase64(encryptedUsername);
-            const encryptedPasswordBase64 = arrayBufferToBase64(encryptedPassword);
 
             // 저장된 로그인 정보 저장
             chrome.storage.local.set({

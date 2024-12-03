@@ -51,7 +51,7 @@ function performCrawling() {
             chrome.tabs.create({ url: LOGIN_URL, active: false }, (tab) => {
                 console.log(`크롤링을 위해 로그인 페이지를 열었습니다. 탭 ID: ${tab.id}`);
 
-                // 페이지 로드 후 일정 시간(예: 10초) 후에 탭 닫기
+                // 페이지 로드 후 일정 시간 후에 탭 닫기
                 setTimeout(() => {
                     chrome.tabs.remove(tab.id, () => {
                         console.log(`크롤링을 위한 탭을 닫았습니다. 탭 ID: ${tab.id}`);
@@ -70,10 +70,11 @@ function performCrawling() {
 
 // 메시지 리스너: content.js로부터 데이터 수신
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === 'start_crawling'){
-        performCrawling()
+    if (request.action === 'start_crawling') {
+        performCrawling();
+        sendResponse({ status: 'success' });
     }
-    if (request.action === 'send_data') {
+    else if (request.action === 'send_data') {
         const data = request.data;
         console.log('수신된 크롤링 데이터:', data);
 
@@ -104,7 +105,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             isClickable: true
         }, (id) => {
             console.log(`로그인 오류 알림 생성: ${id}`);
-
         });
         sendResponse({ status: 'success' });
     }
