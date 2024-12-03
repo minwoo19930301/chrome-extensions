@@ -4,7 +4,7 @@
     const PASSPHRASE = "gmarket";
 
     function isLoginPage() {
-        return window.location.href.startsWith(LOGIN_URL);
+        return window.location.href.startsWith(LOGIN_URL) && window.location.search.includes('autocrawl=true');
     }
 
     function checkLoginAttempt(callback) {
@@ -76,12 +76,8 @@
         });
     }
 
-    function navigateToTargetPage() {
-        window.location.href = TARGET_URL;
-    }
-
     function isTargetPage() {
-        return window.location.href.includes("BoardList.aspx");
+        return window.location.href.startsWith(TARGET_URL) && window.location.search.includes('autocrawl=true');
     }
 
     function resetLoginAttempt() {
