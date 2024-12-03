@@ -1,5 +1,3 @@
-// content.js
-
 (function() {
     const LOGIN_URL = "https://blossom.shinsegae.com/WebSite/Login.aspx";
     const TARGET_URL = "https://blossom.shinsegae.com/WebSite/Basic/Board/BoardList.aspx?system=Board&fdid=45044";
@@ -38,9 +36,8 @@
 
     // 로그인 실패 감지 함수
     function detectLoginFailure() {
-        // 실제 로그인 실패 메시지 요소의 선택자와 텍스트로 수정 필요
-        const errorElement = document.querySelector('.error-message'); // 실제 오류 메시지 요소로 수정
-        if (errorElement && errorElement.textContent.includes('로그인 실패')) { // 실제 오류 메시지로 수정
+        const errorElement = document.querySelector('.error-message');
+        if (errorElement && errorElement.textContent.includes('로그인 실패')) {
             console.log('로그인 실패 감지.');
             chrome.runtime.sendMessage({ action: 'notify_login_error' }, (response) => {
                 if (response.status !== 'success') {
@@ -114,7 +111,7 @@
         }
     }
 
-    // 암호화 키 파생 함수 (utils.js에서 가져오기)
+    // 암호화 키 파생 함수
     async function getKey(password) {
         const encoder = new TextEncoder();
         const keyMaterial = await window.crypto.subtle.importKey(
@@ -128,7 +125,7 @@
         const key = await window.crypto.subtle.deriveKey(
             {
                 name: "PBKDF2",
-                salt: encoder.encode("unique-salt"), // 팝업과 동일한 솔트 사용
+                salt: encoder.encode("unique-salt"),
                 iterations: 100000,
                 hash: "SHA-256"
             },
@@ -139,23 +136,6 @@
         );
 
         return key;
-    }
-
-    // ArrayBuffer를 UTF-8 문자열로 변환하는 함수
-    function arrayBufferToString(buffer) {
-        const decoder = new TextDecoder();
-        return decoder.decode(buffer);
-    }
-
-    // Base64를 ArrayBuffer로 변환하는 함수
-    function base64ToArrayBuffer(base64) {
-        const binaryString = window.atob(base64);
-        const len = binaryString.length;
-        const bytes = new Uint8Array(len);
-        for (let i = 0; i < len; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-        }
-        return bytes.buffer;
     }
 
     // 메인 실행 함수
@@ -230,7 +210,6 @@
             console.log('대상 페이지 감지. 데이터 크롤링을 시작합니다.');
             const data = scrapeData();
             sendData(data);
-            window.close();
         }
         else {
             console.log('해당 페이지에서는 동작하지 않습니다.');

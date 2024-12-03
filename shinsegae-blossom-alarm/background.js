@@ -56,7 +56,7 @@ function performCrawling() {
                     chrome.tabs.remove(tab.id, () => {
                         console.log(`크롤링을 위한 탭을 닫았습니다. 탭 ID: ${tab.id}`);
                     });
-                }, 100); // 10초 후 탭 닫기 (필요에 따라 조정)
+                }, 10000); // 10초 후 탭 닫기 (필요에 따라 조정)
             });
         } else {
             console.log('저장된 암호화된 로그인 정보가 없습니다. 팝업을 열어 로그인 정보를 입력하세요.');
@@ -70,6 +70,9 @@ function performCrawling() {
 
 // 메시지 리스너: content.js로부터 데이터 수신
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === 'start_crawling'){
+        performCrawling()
+    }
     if (request.action === 'send_data') {
         const data = request.data;
         console.log('수신된 크롤링 데이터:', data);
