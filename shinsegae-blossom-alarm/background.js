@@ -2,6 +2,9 @@
 
 const TARGET_URL = "https://blossom.shinsegae.com/WebSite/Basic/Board/BoardList.aspx?system=Board&fdid=45044";
 
+// 크롤링 탭 ID를 저장하는 집합
+let crawlingTabIds = new Set();
+
 // 알람 생성 함수
 function createAlarm() {
     chrome.alarms.create('blossomAlarm', { delayInMinutes: 1, periodInMinutes: 1 });
@@ -50,13 +53,8 @@ function performCrawling() {
             // 로그인 페이지 열기 (비활성 탭으로 열기)
             chrome.tabs.create({ url: LOGIN_URL, active: false }, (tab) => {
                 console.log(`크롤링을 위해 로그인 페이지를 열었습니다. 탭 ID: ${tab.id}`);
-
-                // 페이지 로드 후 일정 시간 후에 탭 닫기
-                setTimeout(() => {
-                    chrome.tabs.remove(tab.id, () => {
-                        console.log(`크롤링을 위한 탭을 닫았습니다. 탭 ID: ${tab.id}`);
-                    });
-                }, 10000); // 10초 후 탭 닫기 (필요에 따라 조정)
+                // 크롤링 탭 ID 저장
+                crawlingTabIds.add(tab.id);
             });
         } else {
             console.log('저장된 암호화된 로그인 정보가 없습니다. 팝업을 열어 로그인 정보를 입력하세요.');
@@ -68,7 +66,7 @@ function performCrawling() {
     });
 }
 
-// 메시지 리스너: content.js로부터 데이터 수신
+// 메시지 리스너: content.js로부터 데이터 수신 및 탭 닫기
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'start_crawling') {
         performCrawling();
@@ -86,7 +84,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 title: latestPost.promotionName,
                 message: `${latestPost.category} (${latestPost.productGroup}) ${latestPost.postDate}`,
                 priority: 2,
-                isClickable: true
+                isClickable: true,
+                requireInteraction: true  // 이 옵션을 추가하여 알림이 사라지지 않도록 함
             }, (notificationId) => {
                 console.log(`알림 생성: ${latestPost.promotionName} (ID: ${notificationId})`);
             });
@@ -102,7 +101,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             title: '로그인 오류',
             message: '로그인 정보가 유효하지 않습니다. 로그인 정보를 재입력해 주세요.',
             priority: 2,
-            isClickable: true
+            isClickable: true,
+            requireInteraction: true  // 여기도 추가
         }, (id) => {
             console.log(`로그인 오류 알림 생성: ${id}`);
         });
@@ -116,10 +116,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             title: '로그인 정보 필요',
             message: '로그인 정보가 저장되지 않았습니다. 로그인 정보를 입력해 주세요.',
             priority: 2,
-            isClickable: true
+            isClickable: true,
+            requireInteraction: true  // 여기도 추가
         }, (id) => {
             console.log(`로그인 정보 누락 알림 생성: ${id}`);
         });
+        sendResponse({ status: 'success' });
+    }
+    else if (request.action === 'content_finished') {
+        if (sender.tab && sender.tab.id) {
+            if (crawlingTabIds.has(sender.tab.id)) {
+                chrome.tabs.remove(sender.tab.id, () => {
+                    console.log(`크롤링 탭을 닫았습니다. 탭 ID: ${sender.tab.id}`);
+                    crawlingTabIds.delete(sender.tab.id);
+                });
+            }
+        }
         sendResponse({ status: 'success' });
     }
 });

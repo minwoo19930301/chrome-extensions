@@ -139,6 +139,17 @@
         }
     }
 
+    // 작업 완료 후 백그라운드로 메시지 전송하여 탭 닫기 요청
+    function notifyBackgroundToCloseTab() {
+        chrome.runtime.sendMessage({ action: 'content_finished' }, (response) => {
+            if (response && response.status === 'success') {
+                console.log('백그라운드에 탭 닫기 요청을 보냈습니다.');
+            } else {
+                console.log('탭 닫기 요청 전송 실패.');
+            }
+        });
+    }
+
     // 메인 실행 함수
     async function main() {
         if (isLoginPage()) {
@@ -168,6 +179,9 @@
             console.log('대상 페이지 감지. 데이터 크롤링을 시작합니다.');
             const data = scrapeData();
             sendData(data);
+
+            // 작업 완료 후 백그라운드에 탭 닫기 요청
+            notifyBackgroundToCloseTab();
         }
         else {
             console.log('해당 페이지에서는 동작하지 않습니다.');
