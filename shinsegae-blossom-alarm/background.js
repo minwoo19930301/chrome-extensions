@@ -5,9 +5,12 @@ let crawlingTabIds = new Set();
 let notifiedPostNumbers = new Set();
 
 function createAlarm() {
-    chrome.alarms.clear('blossomAlarm', () => {
-        chrome.alarms.create('blossomAlarm', { delayInMinutes: 1, periodInMinutes: 1 });
-        console.log('blossomAlarm이 설정되었습니다.');
+    chrome.storage.local.get('alarmInterval', (result) => {
+        const interval = result.alarmInterval || 1;
+        chrome.alarms.clear('blossomAlarm', () => {
+            chrome.alarms.create('blossomAlarm', { delayInMinutes: interval, periodInMinutes: interval });
+            console.log(`blossomAlarm이 설정되었습니다. 간격: ${interval}분`);
+        });
     });
 }
 
@@ -88,38 +91,53 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         tryToOpenBoardPageOrLoginPage();
         sendResponse({ status: 'success' });
     }
+    else if (request.action === 'reset_alarm') {
+        createAlarm();
+        sendResponse({ status: 'success' });
+    }
     else if (request.action === 'send_data') {
         const data = request.data;
         console.log('수신된 크롤링 데이터:', data);
-        createAlarm(); // 데이터 수신 후 알람 설정
-        if (data.length > 0) {
-            let newNotifications = false;
-            data.slice().reverse().forEach(post => {
-                if (!notifiedPostNumbers.has(post.number)) {
-                    chrome.notifications.create(`post_${post.number}`, {
-                        type: 'basic',
-                        iconUrl: chrome.runtime.getURL('icon.png'),
-                        title: post.promotionName,
-                        message: `${post.category} (${post.productGroup}) ${post.postDate}`,
-                        priority: 2,
-                        isClickable: true,
-                        requireInteraction: true
-                    }, (notificationId) => {
-                        console.log(`알림 생성: ${post.promotionName} (ID: ${notificationId})`);
-                    });
-                    notifiedPostNumbers.add(post.number);
-                    newNotifications = true;
-                }
-            });
 
-            if (newNotifications) {
-                chrome.storage.local.set({ notifiedPostNumbers: Array.from(notifiedPostNumbers) }, () => {
-                    console.log('알림 기록이 업데이트되어 저장되었습니다.');
+        // 저장된 제외 분류 가져오기
+        chrome.storage.local.get('excludedCategories', (result) => {
+            const excludedCategories = result.excludedCategories || [];
+            console.log('제외할 분류:', excludedCategories);
+
+            createAlarm(); // 데이터 수신 후 알람 설정
+
+            if (data.length > 0) {
+                let newNotifications = false;
+                data.slice().reverse().forEach(post => {
+                    if (!notifiedPostNumbers.has(post.number) && !excludedCategories.includes(post.category)) {
+                        // 알림 생성 코드
+                        chrome.notifications.create(`post_${post.number}`, {
+                            type: 'basic',
+                            iconUrl: chrome.runtime.getURL('icon.png'),
+                            title: post.promotionName,
+                            message: `${post.category} (${post.productGroup}) ${post.postDate}`,
+                            priority: 2,
+                            isClickable: true,
+                            requireInteraction: true
+                        }, (notificationId) => {
+                            console.log(`알림 생성: ${post.promotionName} (ID: ${notificationId})`);
+                        });
+                        notifiedPostNumbers.add(post.number);
+                        newNotifications = true;
+                    } else {
+                        console.log(`알림 제외: ${post.promotionName} (분류: ${post.category})`);
+                    }
                 });
-            }
-        }
 
-        sendResponse({ status: 'success' });
+                if (newNotifications) {
+                    chrome.storage.local.set({ notifiedPostNumbers: Array.from(notifiedPostNumbers) }, () => {
+                        console.log('알림 기록이 업데이트되어 저장되었습니다.');
+                    });
+                }
+            }
+
+            sendResponse({ status: 'success' });
+        });
     }
     else if (request.action === 'notify_login_error') {
         chrome.notifications.create('login_error', {
