@@ -1,3 +1,5 @@
+// background.js
+
 const TARGET_URL = "https://blossom.shinsegae.com/WebSite/Basic/Board/BoardList.aspx?system=Board&fdid=45044&autocrawl=true";
 let crawlingTabIds = new Set();
 let notifiedPostNumbers = new Set();
@@ -5,6 +7,21 @@ let notifiedPostNumbers = new Set();
 function createAlarm() {
     chrome.alarms.create('blossomAlarm', { delayInMinutes: 1, periodInMinutes: 1 });
     console.log('blossomAlarm이 설정되었습니다.');
+}
+
+// 알림 생성 함수
+function notifyMissingCredentials() {
+    chrome.notifications.create('missing_credentials', {
+        type: 'basic',
+        iconUrl: chrome.runtime.getURL('icon.png'),
+        title: '로그인 정보 필요',
+        message: '로그인 정보가 저장되지 않았습니다. 로그인 정보를 입력해 주세요.',
+        priority: 2,
+        isClickable: true,
+        requireInteraction: true
+    }, (id) => {
+        console.log(`로그인 정보 필요 알림 생성: ${id}`);
+    });
 }
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -15,13 +32,10 @@ chrome.runtime.onInstalled.addListener(() => {
     chrome.storage.local.remove(keysToRemove, () => {
         console.log('지정된 키들이 chrome.storage.local에서 삭제되었습니다.');
     });
-    chrome.runtime.sendMessage({ action: 'notify_missing_credentials' }, (response) => {
-        if (response && response.status === 'success') {
-            console.log('로그인 정보 필요 알림을 보냈습니다.');
-        } else {
-            console.log('로그인 정보 필요 알림을 보내는 데 실패했습니다.');
-        }
-    });
+
+    // 로그인 정보 필요 알림 생성
+    notifyMissingCredentials();
+
     createAlarm();
 });
 
@@ -59,13 +73,8 @@ function performCrawling() {
             });
         } else {
             console.log('저장된 암호화된 로그인 정보가 없습니다. 로그인 정보가 필요합니다.');
-            chrome.runtime.sendMessage({ action: 'notify_missing_credentials' }, (response) => {
-                if (response && response.status === 'success') {
-                    console.log('로그인 정보 필요 알림을 보냈습니다.');
-                } else {
-                    console.log('로그인 정보 필요 알림을 보내는 데 실패했습니다.');
-                }
-            });
+            // 로그인 정보 필요 알림 생성
+            notifyMissingCredentials();
         }
     });
 }
@@ -81,7 +90,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         if (data.length > 0) {
             let newNotifications = false;
-            data.forEach(post => {
+            data.slice().reverse().forEach(post => {
                 if (!notifiedPostNumbers.has(post.number)) {
                     chrome.notifications.create(`post_${post.number}`, {
                         type: 'basic',
@@ -113,26 +122,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             type: 'basic',
             iconUrl: chrome.runtime.getURL('icon.png'),
             title: '로그인 오류',
-            message: '로그인 아이디 혹은 패스워드가 틀렸습니다. 혹은 VPN이나 회사와이파이로 접속해야합니다.',
+            message: '로그인 아이디 또는 패스워드가 틀렸습니다. 또는 VPN이나 회사 와이파이로 접속해야 합니다.',
             priority: 1,
             isClickable: true,
             requireInteraction: true
         }, (id) => {
             console.log(`로그인 오류 알림 생성: ${id}`);
-        });
-        sendResponse({ status: 'success' });
-    }
-    else if (request.action === 'notify_missing_credentials') {
-        chrome.notifications.create('missing_credentials', {
-            type: 'basic',
-            iconUrl: chrome.runtime.getURL('icon.png'),
-            title: '로그인 정보 필요',
-            message: '로그인 정보가 저장되지 않았습니다. 로그인 정보를 입력해 주세요.',
-            priority: 2,
-            isClickable: true,
-            requireInteraction: true
-        }, (id) => {
-            console.log(`로그인 정보 필요 알림 생성: ${id}`);
         });
         sendResponse({ status: 'success' });
     }
