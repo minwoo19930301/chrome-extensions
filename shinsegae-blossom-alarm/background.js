@@ -9,14 +9,31 @@ function createAlarm() {
 
 chrome.runtime.onInstalled.addListener(() => {
     console.log('Blossom 게시판 자동 크롤러 익스텐션이 설치되었습니다.');
-    chrome.tabs.create({ url: chrome.runtime.getURL("popup.html"), active: true }, (tab) => {
-        console.log(`팝업을 열기 위해 새로운 탭을 열었습니다. 탭 ID: ${tab.id}`);
+
+    // 초기화할 키 목록 정의
+    const keysToRemove = ['loginAttempted', 'notifiedPostNumbers', 'iv', 'encryptedUsername', 'encryptedPassword'];
+    chrome.storage.local.remove(keysToRemove, () => {
+        console.log('지정된 키들이 chrome.storage.local에서 삭제되었습니다.');
+    });
+    chrome.runtime.sendMessage({ action: 'notify_missing_credentials' }, (response) => {
+        if (response && response.status === 'success') {
+            console.log('로그인 정보 필요 알림을 보냈습니다.');
+        } else {
+            console.log('로그인 정보 필요 알림을 보내는 데 실패했습니다.');
+        }
     });
     createAlarm();
 });
 
 chrome.runtime.onStartup.addListener(() => {
     console.log('브라우저가 시작되었습니다.');
+
+    // 초기화할 키 목록 정의
+    const keysToRemove = ['loginAttempted', 'notifiedPostNumbers', 'iv', 'encryptedUsername', 'encryptedPassword'];
+    chrome.storage.local.remove(keysToRemove, () => {
+        console.log('지정된 키들이 chrome.storage.local에서 삭제되었습니다.');
+    });
+
     createAlarm();
 });
 
@@ -41,9 +58,13 @@ function performCrawling() {
                 crawlingTabIds.add(tab.id);
             });
         } else {
-            console.log('저장된 암호화된 로그인 정보가 없습니다. 팝업을 열어 로그인 정보를 입력하세요.');
-            chrome.tabs.create({ url: chrome.runtime.getURL("popup.html"), active: true }, () => {
-                console.log('로그인 정보 입력을 위해 팝업을 열었습니다.');
+            console.log('저장된 암호화된 로그인 정보가 없습니다. 로그인 정보가 필요합니다.');
+            chrome.runtime.sendMessage({ action: 'notify_missing_credentials' }, (response) => {
+                if (response && response.status === 'success') {
+                    console.log('로그인 정보 필요 알림을 보냈습니다.');
+                } else {
+                    console.log('로그인 정보 필요 알림을 보내는 데 실패했습니다.');
+                }
             });
         }
     });
@@ -92,8 +113,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             type: 'basic',
             iconUrl: chrome.runtime.getURL('icon.png'),
             title: '로그인 오류',
-            message: '로그인 정보가 유효하지 않습니다. 로그인 정보를 재입력해 주세요.',
-            priority: 2,
+            message: '로그인 아이디 혹은 패스워드가 틀렸습니다. 혹은 VPN이나 회사와이파이로 접속해야합니다.',
+            priority: 1,
             isClickable: true,
             requireInteraction: true
         }, (id) => {
@@ -111,7 +132,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             isClickable: true,
             requireInteraction: true
         }, (id) => {
-            console.log(`로그인 정보 누락 알림 생성: ${id}`);
+            console.log(`로그인 정보 필요 알림 생성: ${id}`);
         });
         sendResponse({ status: 'success' });
     }
