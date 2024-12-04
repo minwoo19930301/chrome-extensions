@@ -5,12 +5,21 @@ let crawlingTabIds = new Set();
 let notifiedPostNumbers = new Set();
 
 function createAlarm() {
-    chrome.alarms.create('blossomAlarm', { delayInMinutes: 1, periodInMinutes: 1 });
-    console.log('blossomAlarm이 설정되었습니다.');
+    chrome.alarms.clear('blossomAlarm', () => {
+        chrome.alarms.create('blossomAlarm', { delayInMinutes: 1, periodInMinutes: 1 });
+        console.log('blossomAlarm이 설정되었습니다.');
+    });
 }
 
 // 알림 생성 함수
 function notifyMissingCredentials() {
+    chrome.alarms.clear('blossomAlarm', (wasCleared) => {
+        if (wasCleared) {
+            console.log('로그인 정보 누락으로 인해 blossomAlarm이 멈췄습니다.');
+        } else {
+            console.log('blossomAlarm을 멈추는 데 실패했습니다.');
+        }
+    });
     chrome.notifications.create('missing_credentials', {
         type: 'basic',
         iconUrl: chrome.runtime.getURL('icon.png'),
@@ -35,8 +44,6 @@ chrome.runtime.onInstalled.addListener(() => {
 
     // 로그인 정보 필요 알림 생성
     notifyMissingCredentials();
-
-    createAlarm();
 });
 
 chrome.runtime.onStartup.addListener(() => {
@@ -47,18 +54,16 @@ chrome.runtime.onStartup.addListener(() => {
     chrome.storage.local.remove(keysToRemove, () => {
         console.log('지정된 키들이 chrome.storage.local에서 삭제되었습니다.');
     });
-
-    createAlarm();
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === "blossomAlarm") {
         console.log('크롤링 알람 발생. 크롤링 작업을 시작합니다.');
-        performCrawling();
+        tryToOpenBoardPageOrLoginPage();
     }
 });
 
-function performCrawling() {
+function tryToOpenBoardPageOrLoginPage() {
     chrome.storage.local.get(['iv', 'encryptedUsername', 'encryptedPassword', 'notifiedPostNumbers'], (result) => {
         const { iv, encryptedUsername, encryptedPassword, notifiedPostNumbers: storedNotified } = result;
         if (storedNotified) {
@@ -68,12 +73,11 @@ function performCrawling() {
         if (iv && encryptedUsername && encryptedPassword) {
             console.log('저장된 암호화된 로그인 정보를 불러왔습니다.');
             chrome.tabs.create({ url: TARGET_URL, active: false }, (tab) => {
-                console.log(`크롤링을 위해 로그인 페이지를 열었습니다. 탭 ID: ${tab.id}`);
+                console.log(`크롤링을 위해 게시판 페이지를 열었습니다. 탭 ID: ${tab.id}`);
                 crawlingTabIds.add(tab.id);
             });
         } else {
             console.log('저장된 암호화된 로그인 정보가 없습니다. 로그인 정보가 필요합니다.');
-            // 로그인 정보 필요 알림 생성
             notifyMissingCredentials();
         }
     });
@@ -81,13 +85,13 @@ function performCrawling() {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'start_crawling') {
-        performCrawling();
+        tryToOpenBoardPageOrLoginPage();
         sendResponse({ status: 'success' });
     }
     else if (request.action === 'send_data') {
         const data = request.data;
         console.log('수신된 크롤링 데이터:', data);
-
+        createAlarm(); // 데이터 수신 후 알람 설정
         if (data.length > 0) {
             let newNotifications = false;
             data.slice().reverse().forEach(post => {
@@ -128,6 +132,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             requireInteraction: true
         }, (id) => {
             console.log(`로그인 오류 알림 생성: ${id}`);
+        });
+        // 알람 멈추기
+        chrome.alarms.clear('blossomAlarm', (wasCleared) => {
+            if (wasCleared) {
+                console.log('로그인 오류로 인해 blossomAlarm이 멈췄습니다.');
+            } else {
+                console.log('blossomAlarm을 멈추는 데 실패했습니다.');
+            }
         });
         sendResponse({ status: 'success' });
     }

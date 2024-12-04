@@ -1,3 +1,5 @@
+// content.js
+
 (async function() {
     const LOGIN_URL = "https://blossom.shinsegae.com/WebSite/Login.aspx";
     const TARGET_URL = "https://blossom.shinsegae.com/WebSite/Basic/Board/BoardList.aspx?system=Board&fdid=45044";
@@ -63,7 +65,6 @@
 
     function handleLoginFailure() {
         chrome.runtime.sendMessage({ action: 'notify_login_error' }, (response) => {});
-        chrome.runtime.sendMessage({ action: 'clear_credentials' }, (response) => {});
         setLoginAttempted(false, () => {
             notifyBackgroundToCloseTab();
         });

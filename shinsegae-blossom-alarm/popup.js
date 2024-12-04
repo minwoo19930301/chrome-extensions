@@ -31,13 +31,13 @@ async function saveCredentials() {
                 encryptedPassword: encryptedPasswordBase64
             }, () => {
                 console.log('로그인 정보가 저장되었습니다.');
-            });
 
-            // 메시지를 보내서 background.js에서 크롤링 시작
-            chrome.runtime.sendMessage({ action: 'start_crawling' }, (response) => {
-                if (response.status === 'success') {
-                    console.log('크롤링 시작');
-                }
+                // 메시지를 보내서 background.js에서 크롤링 시작
+                chrome.runtime.sendMessage({ action: 'start_crawling' }, (response) => {
+                    if (response.status === 'success') {
+                        console.log('크롤링 시작');
+                    }
+                });
             });
 
         } catch (error) {
